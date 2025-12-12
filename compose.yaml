@@ -1,0 +1,10 @@
+services:
+  babelhelperpluginutils:
+    image: babelhelperpluginutils
+    build:
+      context: backend/node_modules/@babel/helper-plugin-utils
+      dockerfile: ./Dockerfile
+    environment:
+      NODE_ENV: production
+    ports:
+      - 3000:3000

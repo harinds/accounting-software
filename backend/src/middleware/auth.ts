@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { supabase } from '../config/supabase';
+import { supabase, supabaseAdmin } from '../config/supabase';
 import { AppError } from './errorHandler';
 
 export interface AuthRequest extends Request {
@@ -77,8 +77,8 @@ export const checkOrganizationAccess = async (
       throw new AppError('Organization ID is required', 400);
     }
 
-    // Check if user has access to this organization
-    const { data, error } = await supabase
+    // Check if user has access to this organization (use admin client to bypass RLS)
+    const { data, error } = await supabaseAdmin
       .from('user_organizations')
       .select('*')
       .eq('user_id', req.user!.id)
