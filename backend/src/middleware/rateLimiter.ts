@@ -1,8 +1,11 @@
 import rateLimit from 'express-rate-limit';
 
+// More lenient rate limiting for development
+const isDevelopment = process.env.NODE_ENV !== 'production';
+
 export const rateLimiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes default
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'), // 100 requests per windowMs
+  max: isDevelopment ? 1000 : parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'), // 1000 for dev, 100 for prod
   message: 'Too many requests from this IP, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
@@ -16,6 +19,6 @@ export const rateLimiter = rateLimit({
 // Stricter rate limiting for authentication endpoints
 export const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 requests per window
+  max: isDevelopment ? 500 : 20, // 500 for dev, 20 for production
   message: 'Too many authentication attempts, please try again later'
 });

@@ -7,7 +7,11 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Transactions from './pages/Transactions';
+import Accounts from './pages/Accounts';
 import Reports from './pages/Reports';
+import Invoices from './pages/Invoices';
+import InvoiceForm from './pages/InvoiceForm';
+import InvoiceView from './pages/InvoiceView';
 import Banking from './pages/Banking';
 import Tax from './pages/Tax';
 import Settings from './pages/Settings';
@@ -28,7 +32,12 @@ function App() {
         <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/transactions" element={<Transactions />} />
+          <Route path="/accounts" element={<Accounts />} />
           <Route path="/reports" element={<Reports />} />
+          <Route path="/invoices" element={<Invoices />} />
+          <Route path="/invoices/new" element={<InvoiceForm />} />
+          <Route path="/invoices/:id" element={<InvoiceView />} />
+          <Route path="/invoices/:id/edit" element={<InvoiceForm />} />
           <Route path="/banking" element={<Banking />} />
           <Route path="/tax" element={<Tax />} />
           <Route path="/settings" element={<Settings />} />

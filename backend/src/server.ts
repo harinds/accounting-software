@@ -9,8 +9,10 @@ import logger from './utils/logger';
 
 // Import routes
 import authRoutes from './routes/auth.routes';
+import accountsRoutes from './routes/accounts.routes';
 import transactionRoutes from './routes/transactions.routes';
 import reportRoutes from './routes/reports.routes';
+import invoiceRoutes from './routes/invoice.routes';
 import paymentRoutes from './routes/payments.routes';
 import bankFeedRoutes from './routes/bankFeeds.routes';
 import taxRoutes from './routes/tax.routes';
@@ -52,8 +54,10 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use('/api/auth', authRoutes);
+app.use('/api/accounts', accountsRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/invoices', invoiceRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/bank-feeds', bankFeedRoutes);
 app.use('/api/tax', taxRoutes);

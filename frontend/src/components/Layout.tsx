@@ -3,9 +3,11 @@ import { useAuthStore } from '../store/authStore';
 import {
   LayoutDashboard,
   Receipt,
+  BookOpen,
   BarChart3,
-  Building2,
   FileText,
+  Building2,
+  Receipt as Invoice,
   Settings,
   LogOut
 } from 'lucide-react';
@@ -22,7 +24,9 @@ export default function Layout() {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Transactions', href: '/transactions', icon: Receipt },
+    { name: 'Accounts', href: '/accounts', icon: BookOpen },
     { name: 'Reports', href: '/reports', icon: BarChart3 },
+    { name: 'Invoices', href: '/invoices', icon: Invoice },
     { name: 'Banking', href: '/banking', icon: Building2 },
     { name: 'Tax', href: '/tax', icon: FileText },
     { name: 'Settings', href: '/settings', icon: Settings }
@@ -30,8 +34,8 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Sidebar */}
-      <div className="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200">
+      {/* Sidebar - hidden when printing */}
+      <div className="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 print:hidden">
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
@@ -78,8 +82,8 @@ export default function Layout() {
       </div>
 
       {/* Main content */}
-      <div className="pl-64">
-        <main className="p-8">
+      <div className="pl-64 print:pl-0">
+        <main className="p-8 print:p-0">
           <Outlet />
         </main>
       </div>
