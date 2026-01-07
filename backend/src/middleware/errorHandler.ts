@@ -38,6 +38,13 @@ export const errorHandler = (
     userId: (req as any).user?.id
   });
 
+  // Also log directly to console for Railway logs
+  console.error('=== ERROR OCCURRED ===');
+  console.error('URL:', req.method, req.url);
+  console.error('Error:', err.message);
+  console.error('Stack:', err.stack);
+  console.error('=====================');
+
   // Send response
   res.status(statusCode).json({
     error: message,
