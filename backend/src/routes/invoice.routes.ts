@@ -86,24 +86,34 @@ router.get('/generate/number', async (req, res, next) => {
 // Create a new invoice
 router.post('/', async (req, res, next) => {
   try {
+    console.log('=== INVOICE CREATE REQUEST RECEIVED ===');
+    console.log('Body:', JSON.stringify(req.body, null, 2));
+
     const invoiceData = req.body;
 
     // Validate required fields
     if (!invoiceData.organization_id) {
+      console.error('VALIDATION ERROR: Organization ID missing');
       return res.status(400).json({ error: 'Organization ID is required' });
     }
 
     if (!invoiceData.customer_name) {
+      console.error('VALIDATION ERROR: Customer name missing');
       return res.status(400).json({ error: 'Customer name is required' });
     }
 
     if (!invoiceData.line_items || invoiceData.line_items.length === 0) {
+      console.error('VALIDATION ERROR: Line items missing');
       return res.status(400).json({ error: 'At least one line item is required' });
     }
 
+    console.log('Creating invoice with service...');
     const invoice = await invoiceService.create(invoiceData);
+    console.log('Invoice created successfully:', invoice.id);
     res.status(201).json(invoice);
   } catch (error) {
+    console.error('=== ERROR IN INVOICE CREATE ===');
+    console.error('Error:', error);
     logger.error('Error in POST /invoices', { error });
     next(error);
   }
