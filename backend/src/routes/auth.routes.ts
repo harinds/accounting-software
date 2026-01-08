@@ -14,18 +14,19 @@ router.use(authRateLimiter);
  * POST /api/auth/register
  */
 router.post('/register', asyncHandler(async (req, res) => {
-  const { email, password, fullName } = req.body;
+  const { email, password, fullName, organizationName } = req.body;
 
   if (!email || !password) {
     throw new AppError('Email and password are required', 400);
   }
 
+  // Register user with Supabase Auth
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: {
-        full_name: fullName
+        full_name: fullName || email.split('@')[0]
       }
     }
   });
@@ -35,14 +36,69 @@ router.post('/register', asyncHandler(async (req, res) => {
     throw new AppError(error.message, 400);
   }
 
-  logger.info('User registered', { email, userId: data.user?.id });
+  if (!data.user) {
+    throw new AppError('User creation failed', 500);
+  }
+
+  // Create user record in users table
+  const { error: userError } = await supabase
+    .from('users')
+    .insert({
+      id: data.user.id,
+      email: data.user.email,
+      full_name: fullName || email.split('@')[0]
+    });
+
+  if (userError) {
+    logger.error('User record creation failed', { error: userError.message, userId: data.user.id });
+  }
+
+  // Auto-create organization for new user
+  const orgName = organizationName || `${fullName || email.split('@')[0]}'s Organization`;
+  const { data: orgData, error: orgError } = await supabase
+    .from('organizations')
+    .insert({
+      name: orgName
+    })
+    .select()
+    .single();
+
+  if (orgError) {
+    logger.error('Organization creation failed', { error: orgError.message, userId: data.user.id });
+  }
+
+  // Link user to organization
+  if (orgData) {
+    const { error: linkError } = await supabase
+      .from('user_organizations')
+      .insert({
+        user_id: data.user.id,
+        organization_id: orgData.id,
+        role: 'owner'
+      });
+
+    if (linkError) {
+      logger.error('User-organization link failed', { error: linkError.message, userId: data.user.id });
+    }
+  }
+
+  logger.info('User registered with organization', {
+    email,
+    userId: data.user.id,
+    organizationId: orgData?.id
+  });
 
   res.status(201).json({
     message: 'Registration successful',
     user: {
-      id: data.user?.id,
-      email: data.user?.email
-    }
+      id: data.user.id,
+      email: data.user.email,
+      fullName: fullName || email.split('@')[0]
+    },
+    organization: orgData ? {
+      id: orgData.id,
+      name: orgData.name
+    } : null
   });
 }));
 
@@ -67,7 +123,24 @@ router.post('/login', asyncHandler(async (req, res) => {
     throw new AppError('Invalid credentials', 401);
   }
 
-  logger.info('User logged in', { email, userId: data.user.id });
+  // Fetch user's organizations
+  const { data: userOrgs, error: orgError } = await supabase
+    .from('user_organizations')
+    .select('organization_id, role, organizations(*)')
+    .eq('user_id', data.user.id);
+
+  if (orgError) {
+    logger.error('Failed to fetch user organizations', { error: orgError.message, userId: data.user.id });
+  }
+
+  // Get the primary organization (first one, or owner role)
+  const primaryOrg = userOrgs?.find(uo => uo.role === 'owner') || userOrgs?.[0];
+
+  logger.info('User logged in', {
+    email,
+    userId: data.user.id,
+    organizationId: primaryOrg?.organization_id
+  });
 
   res.json({
     message: 'Login successful',
@@ -75,6 +148,11 @@ router.post('/login', asyncHandler(async (req, res) => {
       id: data.user.id,
       email: data.user.email
     },
+    organization: primaryOrg ? {
+      id: primaryOrg.organization_id,
+      name: (primaryOrg.organizations as any)?.name,
+      role: primaryOrg.role
+    } : null,
     session: {
       access_token: data.session?.access_token,
       refresh_token: data.session?.refresh_token,

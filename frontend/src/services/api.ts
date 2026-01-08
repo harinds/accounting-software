@@ -59,15 +59,29 @@ export const authApi = {
   logout: () => api.post('/api/auth/logout')
 };
 
+export const accountApi = {
+  getAll: (organizationId: string) =>
+    api.get('/api/accounts', { params: { organizationId } }),
+  getById: (id: string) => api.get(`/api/accounts/${id}`),
+  create: (data: any) => api.post('/api/accounts', data),
+  update: (id: string, data: any) => api.put(`/api/accounts/${id}`, data),
+  delete: (id: string) => api.delete(`/api/accounts/${id}`),
+  seedChartOfAccounts: (organizationId: string) =>
+    api.post('/api/accounts/seed', { organizationId })
+};
+
 export const transactionApi = {
   getAll: (params: any) => api.get('/api/transactions', { params }),
-  getById: (id: string) => api.get(`/api/transactions/${id}`),
+  getById: (id: string, organizationId: string) =>
+    api.get(`/api/transactions/${id}`, { params: { organizationId } }),
   create: (data: any) => api.post('/api/transactions', data),
   update: (id: string, data: any) => api.put(`/api/transactions/${id}`, data),
-  delete: (id: string) => api.delete(`/api/transactions/${id}`),
-  bulkImport: (transactions: any[]) =>
-    api.post('/api/transactions/bulk-import', { transactions }),
-  reconcile: (id: string) => api.post(`/api/transactions/${id}/reconcile`)
+  delete: (id: string, organizationId: string) =>
+    api.delete(`/api/transactions/${id}`, { data: { organizationId } }),
+  bulkImport: (transactions: any[], organizationId: string) =>
+    api.post('/api/transactions/bulk-import', { transactions, organizationId }),
+  reconcile: (id: string, organizationId: string) =>
+    api.post(`/api/transactions/${id}/reconcile`, { organizationId })
 };
 
 export const reportApi = {

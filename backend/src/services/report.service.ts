@@ -16,7 +16,7 @@ class ReportService {
 
       const { data: transactions, error } = await supabaseAdmin
         .from('transactions')
-        .select('*')
+        .select('*, accounts(id, code, name, type)')
         .eq('organization_id', organizationId)
         .gte('transaction_date', dateRange.startDate)
         .lte('transaction_date', dateRange.endDate);
@@ -26,23 +26,66 @@ class ReportService {
         throw error;
       }
 
-      // Calculate revenue and expenses
-      let totalRevenue = 0;
-      let totalExpenses = 0;
-      const revenueByCategory: { [key: string]: number } = {};
-      const expensesByCategory: { [key: string]: number } = {};
+      // Group by account
+      const accountTotals: Record<string, { name: string; code: string; type: string; total: number }> = {};
 
       for (const txn of transactions || []) {
-        if (txn.type === 'credit') {
-          totalRevenue += txn.amount;
-          revenueByCategory[txn.category || 'Uncategorized'] =
-            (revenueByCategory[txn.category || 'Uncategorized'] || 0) + txn.amount;
-        } else {
-          totalExpenses += txn.amount;
-          expensesByCategory[txn.category || 'Uncategorized'] =
-            (expensesByCategory[txn.category || 'Uncategorized'] || 0) + txn.amount;
+        const account = (txn as any).accounts;
+        if (!account) continue;
+
+        const accountKey = account.id;
+        if (!accountTotals[accountKey]) {
+          accountTotals[accountKey] = {
+            name: account.name,
+            code: account.code,
+            type: account.type,
+            total: 0
+          };
+        }
+
+        // Revenue accounts increase with credits, Expense accounts increase with debits
+        if (account.type === 'revenue') {
+          if (txn.type === 'credit') {
+            accountTotals[accountKey].total += txn.amount;
+          } else {
+            accountTotals[accountKey].total -= txn.amount;
+          }
+        } else if (account.type === 'expense') {
+          if (txn.type === 'debit') {
+            accountTotals[accountKey].total += txn.amount;
+          } else {
+            accountTotals[accountKey].total -= txn.amount;
+          }
         }
       }
+
+      // Calculate totals and build response
+      let totalRevenue = 0;
+      let totalExpenses = 0;
+      const revenueItems: Array<{ account: string; accountCode: string; amount: number }> = [];
+      const expenseItems: Array<{ account: string; accountCode: string; amount: number }> = [];
+
+      Object.values(accountTotals).forEach(account => {
+        if (account.type === 'revenue' && account.total !== 0) {
+          revenueItems.push({
+            account: account.name,
+            accountCode: account.code,
+            amount: account.total
+          });
+          totalRevenue += account.total;
+        } else if (account.type === 'expense' && account.total !== 0) {
+          expenseItems.push({
+            account: account.name,
+            accountCode: account.code,
+            amount: account.total
+          });
+          totalExpenses += account.total;
+        }
+      });
+
+      // Sort by account code
+      revenueItems.sort((a, b) => a.accountCode.localeCompare(b.accountCode));
+      expenseItems.sort((a, b) => a.accountCode.localeCompare(b.accountCode));
 
       const netProfit = totalRevenue - totalExpenses;
 
@@ -51,11 +94,11 @@ class ReportService {
         period: dateRange,
         revenue: {
           total: totalRevenue,
-          byCategory: revenueByCategory
+          items: revenueItems
         },
         expenses: {
           total: totalExpenses,
-          byCategory: expensesByCategory
+          items: expenseItems
         },
         netProfit,
         profitMargin: totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0
@@ -176,62 +219,94 @@ class ReportService {
         throw txnError;
       }
 
-      // Calculate account balances
-      const accountBalances: { [accountId: string]: number } = {};
+      // Calculate account balances with proper debit/credit rules
+      const accountBalances: { [accountId: string]: { name: string; code: string; type: string; balance: number } } = {};
+
       for (const txn of transactions || []) {
         if (txn.account_id) {
+          const account = accounts?.find(a => a.id === txn.account_id);
+          if (!account) continue;
+
           if (!accountBalances[txn.account_id]) {
-            accountBalances[txn.account_id] = 0;
+            accountBalances[txn.account_id] = {
+              name: account.name,
+              code: account.code,
+              type: account.type,
+              balance: 0
+            };
           }
-          if (txn.type === 'credit') {
-            accountBalances[txn.account_id] += txn.amount;
-          } else {
-            accountBalances[txn.account_id] -= txn.amount;
+
+          // Apply proper accounting rules:
+          // Assets increase with debits, decrease with credits
+          // Liabilities and Equity increase with credits, decrease with debits
+          if (account.type === 'asset') {
+            if (txn.type === 'debit') {
+              accountBalances[txn.account_id].balance += txn.amount;
+            } else {
+              accountBalances[txn.account_id].balance -= txn.amount;
+            }
+          } else if (account.type === 'liability' || account.type === 'equity') {
+            if (txn.type === 'credit') {
+              accountBalances[txn.account_id].balance += txn.amount;
+            } else {
+              accountBalances[txn.account_id].balance -= txn.amount;
+            }
           }
         }
       }
 
       // Group by account type
-      const assets: { [name: string]: number } = {};
-      const liabilities: { [name: string]: number } = {};
-      const equity: { [name: string]: number } = {};
+      const assetItems: Array<{ account: string; accountCode: string; amount: number }> = [];
+      const liabilityItems: Array<{ account: string; accountCode: string; amount: number }> = [];
+      const equityItems: Array<{ account: string; accountCode: string; amount: number }> = [];
 
       let totalAssets = 0;
       let totalLiabilities = 0;
       let totalEquity = 0;
 
-      for (const account of accounts || []) {
-        const balance = accountBalances[account.id] || 0;
+      Object.values(accountBalances).forEach(account => {
+        if (account.balance === 0) return;
+
+        const item = {
+          account: account.name,
+          accountCode: account.code,
+          amount: account.balance
+        };
 
         switch (account.type) {
           case 'asset':
-            assets[account.name] = balance;
-            totalAssets += balance;
+            assetItems.push(item);
+            totalAssets += account.balance;
             break;
           case 'liability':
-            liabilities[account.name] = balance;
-            totalLiabilities += balance;
+            liabilityItems.push(item);
+            totalLiabilities += account.balance;
             break;
           case 'equity':
-            equity[account.name] = balance;
-            totalEquity += balance;
+            equityItems.push(item);
+            totalEquity += account.balance;
             break;
         }
-      }
+      });
+
+      // Sort by account code
+      assetItems.sort((a, b) => a.accountCode.localeCompare(b.accountCode));
+      liabilityItems.sort((a, b) => a.accountCode.localeCompare(b.accountCode));
+      equityItems.sort((a, b) => a.accountCode.localeCompare(b.accountCode));
 
       return {
         organizationId,
         asOfDate,
         assets: {
-          items: assets,
+          items: assetItems,
           total: totalAssets
         },
         liabilities: {
-          items: liabilities,
+          items: liabilityItems,
           total: totalLiabilities
         },
         equity: {
-          items: equity,
+          items: equityItems,
           total: totalEquity
         },
         totalLiabilitiesAndEquity: totalLiabilities + totalEquity,

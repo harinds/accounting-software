@@ -18,13 +18,15 @@ export default function Register() {
 
     try {
       const response = await authApi.register(email, password, fullName);
-      const { user, session } = response.data;
+      const { user, organization } = response.data;
 
-      setAuth(user, session.access_token, session.refresh_token);
-      toast.success('Registration successful');
-      navigate('/dashboard');
+      // Note: Registration returns user and organization, but NOT session
+      // User needs to login after registration
+      toast.success('Registration successful! Please login.');
+      navigate('/login');
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Registration failed');
+      console.error('Registration error:', error);
+      toast.error(error.response?.data?.error || error.message || 'Registration failed');
     } finally {
       setLoading(false);
     }

@@ -71,7 +71,7 @@ export const checkOrganizationAccess = async (
   next: NextFunction
 ) => {
   try {
-    const organizationId = req.params.organizationId || req.body.organizationId;
+    const organizationId = req.params.organizationId || req.body.organizationId || req.query.organizationId as string;
 
     if (!organizationId) {
       throw new AppError('Organization ID is required', 400);

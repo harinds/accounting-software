@@ -3,7 +3,9 @@ import logger from '../utils/logger';
 
 interface TransactionData {
   accountId?: string;
+  account_id?: string; // Support both snake_case and camelCase
   transactionDate: string;
+  transaction_date?: string; // Support both formats
   amount: number;
   description: string;
   reference?: string;
@@ -19,12 +21,16 @@ class TransactionService {
     try {
       logger.info('Creating transaction', { organizationId });
 
+      // Support both camelCase and snake_case field names
+      const accountId = data.account_id || data.accountId;
+      const transactionDate = data.transaction_date || data.transactionDate;
+
       const { data: transaction, error } = await supabaseAdmin
         .from('transactions')
         .insert({
           organization_id: organizationId,
-          account_id: data.accountId,
-          transaction_date: data.transactionDate,
+          account_id: accountId || null,
+          transaction_date: transactionDate,
           amount: data.amount,
           description: data.description,
           reference: data.reference,
@@ -145,10 +151,27 @@ class TransactionService {
     userId: string
   ) {
     try {
+      // Extract only the fields that should be updated (exclude organizationId, id, etc.)
+      const { organizationId: _orgId, ...updateFields } = updates as any;
+
+      // Map camelCase to snake_case for database (support both formats)
+      const dbFields: any = {};
+      if (updateFields.accountId !== undefined || updateFields.account_id !== undefined) {
+        dbFields.account_id = updateFields.account_id || updateFields.accountId;
+      }
+      if (updateFields.transactionDate !== undefined || updateFields.transaction_date !== undefined) {
+        dbFields.transaction_date = updateFields.transaction_date || updateFields.transactionDate;
+      }
+      if (updateFields.amount !== undefined) dbFields.amount = updateFields.amount;
+      if (updateFields.description !== undefined) dbFields.description = updateFields.description;
+      if (updateFields.reference !== undefined) dbFields.reference = updateFields.reference;
+      if (updateFields.type !== undefined) dbFields.type = updateFields.type;
+      if (updateFields.category !== undefined) dbFields.category = updateFields.category;
+
       const { data, error } = await supabaseAdmin
         .from('transactions')
         .update({
-          ...updates,
+          ...dbFields,
           updated_at: new Date().toISOString()
         })
         .eq('id', transactionId)
@@ -162,7 +185,7 @@ class TransactionService {
       }
 
       // Log audit
-      await this.logAudit(organizationId, userId, 'update_transaction', transactionId, updates);
+      await this.logAudit(organizationId, userId, 'update_transaction', transactionId, updateFields);
 
       return data;
     } catch (error: any) {
@@ -206,8 +229,8 @@ class TransactionService {
 
       const records = transactions.map(txn => ({
         organization_id: organizationId,
-        account_id: txn.accountId,
-        transaction_date: txn.transactionDate,
+        account_id: txn.account_id || txn.accountId || null,
+        transaction_date: txn.transaction_date || txn.transactionDate,
         amount: txn.amount,
         description: txn.description,
         reference: txn.reference,

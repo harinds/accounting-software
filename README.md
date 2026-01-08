@@ -47,6 +47,11 @@ A comprehensive cloud-based accounting solution with integrated payment processi
 git clone https://github.com/yourorg/accounting-software.git
 cd accounting-software
 
+# Verify your setup is ready
+./scripts/verify-setup.sh        # Linux/Mac
+# OR
+.\scripts\verify-setup.ps1       # Windows PowerShell
+
 # Run setup script
 chmod +x scripts/setup.sh
 ./scripts/setup.sh

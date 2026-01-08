@@ -17,9 +17,9 @@ export default function Login() {
 
     try {
       const response = await authApi.login(email, password);
-      const { user, session } = response.data;
+      const { user, session, organization } = response.data;
 
-      setAuth(user, session.access_token, session.refresh_token);
+      setAuth(user, session.access_token, session.refresh_token, organization);
       toast.success('Login successful');
       navigate('/dashboard');
     } catch (error: any) {
