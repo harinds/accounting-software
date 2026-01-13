@@ -83,12 +83,12 @@ export const invoiceService = {
   // Generate next invoice number
   async generateInvoiceNumber(organizationId: string): Promise<string> {
     try {
-      // Get the latest invoice for this organization
+      // Get the highest invoice number for this organization
       const { data, error } = await supabase
         .from('invoices')
         .select('invoice_number')
         .eq('organization_id', organizationId)
-        .order('created_at', { ascending: false })
+        .order('invoice_number', { ascending: false })
         .limit(1);
 
       if (error) throw error;
